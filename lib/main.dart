@@ -10,26 +10,19 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  ThemeData _buildTheme(Brightness brightness) {
-    var baseTheme = ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Color.fromARGB(255, 180, 103, 133),
-        brightness: brightness,
-      ),
-      textTheme: GoogleFonts.jetBrainsMonoTextTheme(),
-    );
-
-    return baseTheme;
-  }
-
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (context) => MyAppState(),
       child: MaterialApp(
         title: 'Namer App',
-        theme: _buildTheme(Brightness.dark),
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Color.fromRGBO(172, 230, 243, 0.871),
+          ),
+          textTheme: GoogleFonts.jetBrainsMonoTextTheme(),
+        ),
         home: MyHomePage(),
       ),
     );
@@ -52,6 +45,7 @@ class MyHomePage extends StatelessWidget {
 
     return Scaffold(
       body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text('A random AWSOME idea:'),
           BigCard(pair: pair),
@@ -85,7 +79,11 @@ class BigCard extends StatelessWidget {
       color: theme.colorScheme.primary,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: Text(pair.asLowerCase, style: style),
+        child: Text(
+          pair.asLowerCase,
+          style: style,
+          semanticsLabel: "${pair.first} ${pair.second}",
+        ),
       ),
     );
   }
