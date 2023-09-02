@@ -31,31 +31,116 @@ class MyApp extends StatelessWidget {
 
 class MyAppState extends ChangeNotifier {
   var current = WordPair.random();
+  Set<WordPair> favorites = {};
   getNext() {
     current = WordPair.random();
     notifyListeners();
   }
+
+  toggleFavorite(pair) {
+    favorites.contains(pair) ? favorites.remove(pair) : favorites.add(pair);
+    notifyListeners();
+  }
 }
 
-class MyHomePage extends StatelessWidget {
+class MyHomePage extends StatefulWidget {
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  var selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget page;
+    switch (selectedIndex) {
+      case 0:
+        page = GeneratorPage();
+        break;
+      case 1:
+        page = Placeholder();
+        break;
+      default:
+        throw UnimplementedError('no widget for $selectedIndex');
+    }
+
+    return LayoutBuilder(builder: (context, constraints) {
+      return Scaffold(
+        body: Row(
+          children: [
+            SafeArea(
+              child: NavigationRail(
+                extended: constraints.maxWidth >= 600,
+                destinations: [
+                  NavigationRailDestination(
+                    icon: Icon(Icons.home),
+                    label: Text('Home'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.favorite),
+                    label: Text('Favorites'),
+                  ),
+                ],
+                selectedIndex: selectedIndex,
+                onDestinationSelected: (value) {
+                  setState(() {
+                    selectedIndex = value;
+                  });
+                },
+              ),
+            ),
+            Expanded(
+              child: Container(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: page,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+class GeneratorPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
     var pair = appState.current;
 
-    return Scaffold(
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('A random AWSOME idea:'),
-          BigCard(pair: pair),
-          ElevatedButton(
+    IconData icon;
+    if (appState.favorites.contains(pair)) {
+      icon = Icons.favorite;
+    } else {
+      icon = Icons.favorite_border;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text('A random AWSOME idea:'),
+        BigCard(pair: pair),
+        SizedBox(height: 10),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton.icon(
               onPressed: () {
-                appState.getNext();
+                appState.toggleFavorite(pair);
               },
-              child: Text('Next')),
-        ],
-      ),
+              icon: Icon(icon),
+              label: Text('Like'),
+            ),
+            SizedBox(width: 20),
+            ElevatedButton(
+                onPressed: () {
+                  appState.getNext();
+                },
+                child: Text('Next')),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -86,5 +171,27 @@ class BigCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class FavoritesWordPair extends StatelessWidget {
+  const FavoritesWordPair({
+    super.key,
+    required this.favorites,
+  });
+
+  final Set<WordPair> favorites;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+        child: Column(
+      children: favorites.map((pair) {
+        return Text(
+          pair.asLowerCase,
+          semanticsLabel: "${pair.first} ${pair.second}",
+        );
+      }).toList(),
+    ));
   }
 }
