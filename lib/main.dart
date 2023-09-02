@@ -41,6 +41,11 @@ class MyAppState extends ChangeNotifier {
     favorites.contains(pair) ? favorites.remove(pair) : favorites.add(pair);
     notifyListeners();
   }
+
+  void delete(WordPair pair) {
+    favorites.remove(pair);
+    notifyListeners();
+  }
 }
 
 class MyHomePage extends StatefulWidget {
@@ -163,7 +168,13 @@ class FavoritesPage extends StatelessWidget {
               '${appState.favorites.length} favorites:')),
       ...appState.favorites
           .map((pair) => ListTile(
-                leading: Icon(Icons.favorite),
+                leading: IconButton(
+                  icon: const Icon(Icons.delete_forever),
+                  tooltip: 'Delete for ever',
+                  onPressed: () {
+                    appState.delete(pair);
+                  },
+                ),
                 title: Text(
                   pair.asLowerCase,
                   semanticsLabel: "${pair.first} ${pair.second}",
