@@ -154,34 +154,56 @@ class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
-
+    final theme = Theme.of(context);
     if (appState.favorites.isEmpty) {
       return Center(
         child: Text('No favorites yet.'),
       );
     }
 
-    return ListView(children: [
-      Padding(
+    return Column(
+      children: [
+        Padding(
           padding: const EdgeInsets.all(20),
-          child: Text('You have '
-              '${appState.favorites.length} favorites:')),
-      ...appState.favorites
-          .map((pair) => ListTile(
-                leading: IconButton(
-                  icon: const Icon(Icons.delete_forever),
-                  tooltip: 'Delete for ever',
-                  onPressed: () {
-                    appState.delete(pair);
-                  },
+          child: Text(
+            'You have ${appState.favorites.length} favorites:',
+          ),
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: appState.favorites.map((pair) {
+            return Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.colorScheme.primary,
+                  width: 1,
                 ),
-                title: Text(
-                  pair.asLowerCase,
-                  semanticsLabel: "${pair.first} ${pair.second}",
-                ),
-              ))
-          .toList(),
-    ]);
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.delete_forever),
+                    tooltip: 'Delete',
+                    onPressed: () {
+                      appState.delete(pair);
+                    },
+                  ),
+                  SizedBox(width: 5),
+                  Text(
+                    pair.asLowerCase,
+                    semanticsLabel: "${pair.first} ${pair.second}",
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 }
 
@@ -192,6 +214,10 @@ class BigCard extends StatelessWidget {
   });
 
   final WordPair pair;
+
+  String capitalize(word) {
+    return "${word[0].toUpperCase()}${word.substring(1).toLowerCase()}";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -204,34 +230,36 @@ class BigCard extends StatelessWidget {
       color: theme.colorScheme.primary,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: Text(
-          pair.asLowerCase,
-          style: style,
-          semanticsLabel: "${pair.first} ${pair.second}",
+        child: AnimatedSize(
+          curve: Curves.easeIn,
+          duration: const Duration(milliseconds: 400),
+          child: RichText(
+            text: TextSpan(
+              text: capitalize(pair.first),
+              style: style.copyWith(
+                fontWeight: FontWeight.w100,
+              ),
+              children: <TextSpan>[
+                TextSpan(
+                  text: pair.second.toUpperCase(),
+                  style: style.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class FavoritesWordPair extends StatelessWidget {
-  const FavoritesWordPair({
-    super.key,
-    required this.favorites,
-  });
-
-  final Set<WordPair> favorites;
+class Historical extends StatelessWidget {
+  const Historical({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-        child: Column(
-      children: favorites.map((pair) {
-        return Text(
-          pair.asLowerCase,
-          semanticsLabel: "${pair.first} ${pair.second}",
-        );
-      }).toList(),
-    ));
+    return Container();
   }
 }
