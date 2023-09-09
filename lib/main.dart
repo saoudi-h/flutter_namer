@@ -7,6 +7,10 @@ void main() {
   runApp(MyApp());
 }
 
+String capitalize(word) {
+  return "${word[0].toUpperCase()}${word.substring(1).toLowerCase()}";
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -29,22 +33,105 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class PairRecord {
+  @override
+  String toString() {
+    return wordPair.asCamelCase;
+  }
+
+  final WordPair wordPair;
+  bool isFavorite;
+
+  PairRecord(this.wordPair, {this.isFavorite = false});
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PairRecord && other.wordPair == wordPair;
+  }
+
+  @override
+  int get hashCode => wordPair.hashCode;
+}
+
 class MyAppState extends ChangeNotifier {
-  var current = WordPair.random();
-  Set<WordPair> favorites = {};
-  getNext() {
-    current = WordPair.random();
+  PairRecord current = PairRecord(WordPair.random());
+  List<PairRecord> wordPairs = [];
+  final GlobalKey<AnimatedListState> key = GlobalKey();
+
+  void removeItem(int index) {
+    print("remove: index = $index");
+    key.currentState!.removeItem(
+      index,
+      (_, animation) => SizeTransition(
+        sizeFactor: animation,
+        child: const Card(
+          margin: EdgeInsets.all(10),
+          color: Colors.red,
+          child: ListTile(
+            title: Text(
+              'Deleted',
+              style: TextStyle(fontSize: 24),
+            ),
+          ),
+        ),
+      ),
+      duration: const Duration(milliseconds: 300),
+    );
+    wordPairs.remove(wordPairs.elementAt(index));
     notifyListeners();
   }
 
-  toggleFavorite(pair) {
-    favorites.contains(pair) ? favorites.remove(pair) : favorites.add(pair);
+  void getNext() {
+    if (wordPairs.contains(current)) return;
+    print(wordPairs.length);
+    int index = 0;
+    key.currentState!.insertItem(
+      index,
+      duration: Duration(milliseconds: 500),
+    );
+    wordPairs.insert(index, current);
+    print("list: $wordPairs");
+    current = PairRecord(WordPair.random());
     notifyListeners();
   }
 
-  void delete(WordPair pair) {
-    favorites.remove(pair);
+  void toggleCurrent() {
+    current.isFavorite = !current.isFavorite;
     notifyListeners();
+  }
+
+  void toggleFavorite(PairRecord pair) {
+    for (var item in wordPairs) {
+      if (item == pair) {
+        item.isFavorite = !item.isFavorite;
+        notifyListeners();
+        break;
+      }
+    }
+  }
+
+  void deleteFavorite(PairRecord pair) {
+    if (pair == current) {
+      current.isFavorite = false;
+      notifyListeners();
+    }
+
+    for (var item in wordPairs) {
+      if (item == pair) {
+        item.isFavorite = false;
+        notifyListeners();
+        break;
+      }
+    }
+  }
+
+  List<PairRecord> getFavorites() {
+    List<PairRecord> res =
+        wordPairs.where((element) => element.isFavorite).toList();
+    if (current.isFavorite) res.add(current);
+    return res;
   }
 }
 
@@ -75,25 +162,27 @@ class _MyHomePageState extends State<MyHomePage> {
         body: Row(
           children: [
             SafeArea(
-              child: NavigationRail(
-                extended: constraints.maxWidth >= 600,
-                destinations: [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.home),
-                    label: Text('Home'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.favorite),
-                    label: Text('Favorites'),
-                  ),
-                ],
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (value) {
-                  setState(() {
-                    selectedIndex = value;
-                  });
-                },
-              ),
+              child: constraints.maxWidth > 400
+                  ? NavigationRail(
+                      extended: constraints.maxWidth >= 600,
+                      destinations: [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.home),
+                          label: Text('Home'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.favorite),
+                          label: Text('Favorites'),
+                        ),
+                      ],
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: (value) {
+                        setState(() {
+                          selectedIndex = value;
+                        });
+                      },
+                    )
+                  : SizedBox(),
             ),
             Expanded(
               child: Container(
@@ -103,6 +192,26 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ],
         ),
+        bottomNavigationBar: constraints.maxWidth <= 400
+            ? BottomNavigationBar(
+                items: const <BottomNavigationBarItem>[
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.favorite),
+                    label: 'Favorites',
+                  ),
+                ],
+                currentIndex: selectedIndex,
+                onTap: (value) {
+                  setState(() {
+                    selectedIndex = value;
+                  });
+                },
+              )
+            : null,
       );
     });
   }
@@ -114,38 +223,50 @@ class GeneratorPage extends StatelessWidget {
     var appState = context.watch<MyAppState>();
     var pair = appState.current;
 
-    IconData icon;
-    if (appState.favorites.contains(pair)) {
-      icon = Icons.favorite;
-    } else {
-      icon = Icons.favorite_border;
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text('A random AWSOME idea:'),
-        BigCard(pair: pair),
-        SizedBox(height: 10),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ElevatedButton.icon(
-              onPressed: () {
-                appState.toggleFavorite(pair);
-              },
-              icon: Icon(icon),
-              label: Text('Like'),
+    IconData icon = pair.isFavorite ? Icons.favorite : Icons.favorite_border;
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 20,
+        top: 50,
+        right: 20,
+        bottom: 50,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Historical(),
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              children: [
+                Text('A random AWSOME idea:'),
+                BigCard(pair: pair),
+                SizedBox(height: 10),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        appState.toggleCurrent();
+                      },
+                      icon: Icon(icon),
+                      label: Text('Like'),
+                    ),
+                    SizedBox(width: 20),
+                    ElevatedButton(
+                        onPressed: () {
+                          appState.getNext();
+                        },
+                        child: Text('Next')),
+                  ],
+                ),
+              ],
             ),
-            SizedBox(width: 20),
-            ElevatedButton(
-                onPressed: () {
-                  appState.getNext();
-                },
-                child: Text('Next')),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -154,8 +275,9 @@ class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
+    var favorites = appState.getFavorites();
     final theme = Theme.of(context);
-    if (appState.favorites.isEmpty) {
+    if (favorites.isEmpty) {
       return Center(
         child: Text('No favorites yet.'),
       );
@@ -166,13 +288,13 @@ class FavoritesPage extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(20),
           child: Text(
-            'You have ${appState.favorites.length} favorites:',
+            'You have ${favorites.length} favorites:',
           ),
         ),
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: appState.favorites.map((pair) {
+          children: favorites.map((pair) {
             return Container(
               padding: EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -189,13 +311,27 @@ class FavoritesPage extends StatelessWidget {
                     icon: const Icon(Icons.delete_forever),
                     tooltip: 'Delete',
                     onPressed: () {
-                      appState.delete(pair);
+                      appState.deleteFavorite(pair);
                     },
                   ),
                   SizedBox(width: 5),
-                  Text(
-                    pair.asLowerCase,
-                    semanticsLabel: "${pair.first} ${pair.second}",
+                  RichText(
+                    text: TextSpan(
+                      text: capitalize(pair.wordPair.first),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w100,
+                        color: theme.colorScheme.primary,
+                      ),
+                      children: <TextSpan>[
+                        TextSpan(
+                          text: pair.wordPair.second.toUpperCase(),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -213,11 +349,7 @@ class BigCard extends StatelessWidget {
     required this.pair,
   });
 
-  final WordPair pair;
-
-  String capitalize(word) {
-    return "${word[0].toUpperCase()}${word.substring(1).toLowerCase()}";
-  }
+  final PairRecord pair;
 
   @override
   Widget build(BuildContext context) {
@@ -235,13 +367,13 @@ class BigCard extends StatelessWidget {
           duration: const Duration(milliseconds: 400),
           child: RichText(
             text: TextSpan(
-              text: capitalize(pair.first),
+              text: capitalize(pair.wordPair.first),
               style: style.copyWith(
                 fontWeight: FontWeight.w100,
               ),
               children: <TextSpan>[
                 TextSpan(
-                  text: pair.second.toUpperCase(),
+                  text: pair.wordPair.second.toUpperCase(),
                   style: style.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -256,10 +388,96 @@ class BigCard extends StatelessWidget {
 }
 
 class Historical extends StatelessWidget {
-  const Historical({Key? key}) : super(key: key);
+  const Historical({
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container();
+    final theme = Theme.of(context);
+    var appState = context.watch<MyAppState>();
+    var wordPairs = appState.wordPairs.toList();
+    var key = appState.key;
+
+    // if (wordPairs.isEmpty) {
+    //   return Center(
+    //     child: SizedBox(height: 10),
+    //   );
+    // }
+
+    return Expanded(
+      child: AnimatedList(
+        reverse: true,
+        key: key,
+        initialItemCount: wordPairs.length,
+        padding: const EdgeInsets.all(10),
+        itemBuilder:
+            (BuildContext context, int index, Animation<double> animation) {
+          return SizeTransition(
+            key: UniqueKey(),
+            sizeFactor: animation,
+            child: Card(
+              margin: const EdgeInsets.all(10),
+              child: ListTile(
+                leading: Ink(
+                  width: 60,
+                  height: 40,
+                  decoration: ShapeDecoration(
+                    color: theme.colorScheme.onPrimary,
+                    shape: StadiumBorder(),
+                  ),
+                  child: IconButton(
+                    highlightColor: theme.colorScheme.inversePrimary,
+                    color: theme.colorScheme.primary,
+                    icon: wordPairs[index].isFavorite
+                        ? Icon(
+                            Icons.favorite,
+                          )
+                        : Icon(Icons.check_box_outline_blank),
+                    onPressed: () {
+                      appState.toggleFavorite(wordPairs[index]);
+                    },
+                  ),
+                ),
+                title: RichText(
+                  text: TextSpan(
+                    text: capitalize(wordPairs[index].wordPair.first),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w100,
+                      color: theme.colorScheme.primary,
+                    ),
+                    children: <TextSpan>[
+                      TextSpan(
+                        text: wordPairs[index].wordPair.second.toUpperCase(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                trailing: Ink(
+                  width: 60,
+                  height: 40,
+                  decoration: ShapeDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: StadiumBorder(),
+                  ),
+                  child: IconButton(
+                    highlightColor: theme.colorScheme.error,
+                    color: theme.colorScheme.onPrimary,
+                    icon: const Icon(Icons.delete),
+                    onPressed: () {
+                      appState.removeItem(index);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
